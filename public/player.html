@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>播放器 - VR影院</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="player-page">
+    <div class="player-container">
+        <div class="player-header">
+            <button class="back-button" onclick="window.location.href='/'">
+                ← 返回
+            </button>
+            <h2 id="videoTitle">加载中...</h2>
+        </div>
+        
+        <div class="video-wrapper">
+            <video id="videoPlayer" controls autoplay>
+                您的浏览器不支持视频播放
+            </video>
+        </div>
+        
+        <div class="player-controls">
+            <div class="video-info" id="videoInfo"></div>
+        </div>
+    </div>
+    
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoId = urlParams.get('id');
+        
+        if (videoId) {
+            fetch(`/api/video/${videoId}`)
+                .then(res => res.json())
+                .then(video => {
+                    document.getElementById('videoTitle').textContent = video.name;
+                    document.getElementById('videoInfo').innerHTML = `
+                        <span>格式: ${video.extension}</span>
+                        <span>大小: ${video.sizeFormatted}</span>
+                        <span>修改时间: ${video.modifiedTimeFormatted}</span>
+                    `;
+                    
+                    const player = document.getElementById('videoPlayer');
+                    player.src = `/api/stream/${videoId}`;
+                })
+                .catch(error => {
+                    alert('加载视频失败');
+                    window.location.href = '/';
+                });
+        } else {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>
