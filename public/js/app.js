@@ -1,5 +1,7 @@
 let allVideos = [];
 let filteredVideos = [];
+let currentCategoryPath = []; // 当前选中的分类路径
+let categoryTree = {};
 
 async function loadServerInfo() {
     try {
@@ -26,10 +28,21 @@ async function loadVideos() {
         allVideos = await response.json();
         filteredVideos = allVideos;
         renderVideos();
+        loadCategories();
     } catch (error) {
         console.error('加载视频列表失败:', error);
         document.getElementById('videoGrid').innerHTML = 
             '<div class="loading">加载失败，请刷新页面重试</div>';
+    }
+}
+
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/categories');
+        categoryTree = await response.json();
+        renderCategoryTree();
+    } catch (error) {
+        console.error('加载分类失败:', error);
     }
 }
 
@@ -74,16 +87,79 @@ function playVideo(videoId) {
 }
 
 function filterVideos(searchTerm) {
-    if (!searchTerm) {
-        filteredVideos = allVideos;
-    } else {
+    let videos = allVideos;
+    
+    // 先按分类过滤
+    if (currentCategoryPath.length > 0) {
+        videos = videos.filter(video => {
+            // 检查视频的分类路径是否包含当前选中的路径
+            return currentCategoryPath.every((folder, index) => 
+                video.categoryPath[index] === folder
+            );
+        });
+    }
+    
+    // 再按搜索词过滤
+    if (searchTerm) {
         const term = searchTerm.toLowerCase();
-        filteredVideos = allVideos.filter(video => 
+        videos = videos.filter(video => 
             video.name.toLowerCase().includes(term) ||
             video.filename.toLowerCase().includes(term)
         );
     }
+    
+    filteredVideos = videos;
     renderVideos();
+}
+
+function renderCategoryTree() {
+    const container = document.getElementById('categoryTree');
+    const totalCount = allVideos.length;
+    
+    let html = `
+        <div class="category-item ${currentCategoryPath.length === 0 ? 'active' : ''}" 
+             onclick="selectCategory([])">
+            <span class="category-icon">🏠</span>
+            <span class="category-name">全部</span>
+            <span class="category-count">(${totalCount})</span>
+        </div>
+    `;
+    
+    html += renderCategoryLevel(categoryTree, [], 0);
+    container.innerHTML = html;
+}
+
+function renderCategoryLevel(tree, parentPath, level) {
+    let html = '';
+    
+    for (const [folderName, data] of Object.entries(tree)) {
+        const currentPath = [...parentPath, folderName];
+        const pathStr = currentPath.join('/');
+        const isActive = currentCategoryPath.join('/') === pathStr;
+        const hasChildren = Object.keys(data.children).length > 0;
+        
+        html += `
+            <div class="category-item ${isActive ? 'active' : ''}" 
+                 style="padding-left: ${20 + level * 20}px"
+                 onclick="selectCategory(${JSON.stringify(currentPath)})">
+                <span class="category-icon">${hasChildren ? '📁' : '📄'}</span>
+                <span class="category-name">${folderName}</span>
+                <span class="category-count">(${data.count})</span>
+            </div>
+        `;
+        
+        if (hasChildren) {
+            html += renderCategoryLevel(data.children, currentPath, level + 1);
+        }
+    }
+    
+    return html;
+}
+
+function selectCategory(path) {
+    currentCategoryPath = path;
+    renderCategoryTree();
+    filterVideos(document.getElementById('searchInput').value);
 }
 
 document.getElementById('searchInput').addEventListener('input', (e) => {

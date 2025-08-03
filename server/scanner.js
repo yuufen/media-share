@@ -9,7 +9,7 @@ async function scanVideos(directories) {
     for (const dir of directories) {
         try {
             await fs.access(dir);
-            const dirVideos = await scanDirectory(dir);
+            const dirVideos = await scanDirectory(dir, dir);
             videos.push(...dirVideos);
         } catch (error) {
             console.log(`跳过不存在的目录: ${dir}`);
@@ -19,7 +19,7 @@ async function scanVideos(directories) {
     return videos.sort((a, b) => b.modifiedTime - a.modifiedTime);
 }
 
-async function scanDirectory(dir) {
+async function scanDirectory(dir, rootDir) {
     const videos = [];
     
     try {
@@ -30,9 +30,13 @@ async function scanDirectory(dir) {
             const stat = await fs.stat(filePath);
             
             if (stat.isDirectory() && config.scanSubdirectories) {
-                const subVideos = await scanDirectory(filePath);
+                const subVideos = await scanDirectory(filePath, rootDir);
                 videos.push(...subVideos);
             } else if (stat.isFile() && isVideoFile(file)) {
+                // 计算相对于根目录的路径
+                const relativePath = path.relative(rootDir, dir);
+                const categoryPath = relativePath ? relativePath.split(path.sep) : [];
+                
                 const video = {
                     id: generateId(filePath),
                     name: path.basename(file, path.extname(file)),
@@ -42,7 +46,9 @@ async function scanDirectory(dir) {
                     sizeFormatted: formatFileSize(stat.size),
                     extension: path.extname(file).toLowerCase(),
                     modifiedTime: stat.mtime,
-                    modifiedTimeFormatted: formatDate(stat.mtime)
+                    modifiedTimeFormatted: formatDate(stat.mtime),
+                    category: relativePath || path.basename(rootDir),
+                    categoryPath: categoryPath.length > 0 ? categoryPath : [path.basename(rootDir)]
                 };
                 videos.push(video);
             }

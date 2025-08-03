@@ -21,6 +21,28 @@ app.get('/api/videos', (req, res) => {
     res.json(videoLibrary);
 });
 
+app.get('/api/categories', (req, res) => {
+    const categoryTree = {};
+    
+    // 构建树状结构
+    videoLibrary.forEach(video => {
+        let currentLevel = categoryTree;
+        
+        video.categoryPath.forEach((folder, index) => {
+            if (!currentLevel[folder]) {
+                currentLevel[folder] = {
+                    count: 0,
+                    children: {}
+                };
+            }
+            currentLevel[folder].count++;
+            currentLevel = currentLevel[folder].children;
+        });
+    });
+    
+    res.json(categoryTree);
+});
+
 app.get('/api/video/:id', (req, res) => {
     const video = videoLibrary.find(v => v.id === req.params.id);
     if (!video) {
