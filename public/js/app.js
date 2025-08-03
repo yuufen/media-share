@@ -2,6 +2,7 @@ let allVideos = [];
 let filteredVideos = [];
 let currentCategoryPath = []; // 当前选中的分类路径
 let categoryTree = {};
+let transcodeJobs = new Map(); // 存储转码任务
 
 async function loadServerInfo() {
     try {
@@ -54,9 +55,14 @@ function renderVideos() {
         return;
     }
     
-    videoGrid.innerHTML = filteredVideos.map(video => `
-        <div class="video-card" onclick="playVideo('${video.id}')">
-            <div class="video-thumbnail">
+    videoGrid.innerHTML = filteredVideos.map(video => {
+        const jobForVideo = Array.from(transcodeJobs.values()).find(job => 
+            job.inputPath === video.path
+        );
+        
+        return `
+        <div class="video-card">
+            <div class="video-thumbnail" onclick="playVideo('${video.id}')">
                 ${getVideoIcon(video.extension)}
             </div>
             <div class="video-info">
@@ -65,9 +71,22 @@ function renderVideos() {
                     <span>${video.extension.toUpperCase()}</span>
                     <span>${video.sizeFormatted}</span>
                 </div>
+                <div class="video-actions">
+                    <button class="action-btn" onclick="playVideo('${video.id}')" title="播放">
+                        ▶️
+                    </button>
+                    <button class="action-btn" onclick="downloadVideo('${video.id}')" title="下载">
+                        💾
+                    </button>
+                    ${jobForVideo ? renderTranscodeStatus(jobForVideo) : `
+                        <button class="action-btn transcode-btn" onclick="startTranscode('${video.id}')" title="转码为安卓格式">
+                            📱
+                        </button>
+                    `}
+                </div>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function getVideoIcon(extension) {
@@ -173,7 +192,108 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
     filterVideos(e.target.value);
 });
 
+function renderTranscodeStatus(job) {
+    if (job.status === 'processing') {
+        return `
+            <div class="transcode-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${job.progress}%"></div>
+                </div>
+                <span class="progress-text">${job.progress}%</span>
+            </div>
+        `;
+    } else if (job.status === 'completed') {
+        return `
+            <button class="action-btn success-btn" onclick="downloadTranscodedVideo('${job.id}')" title="下载转码后的视频">
+                ✅ 下载
+            </button>
+        `;
+    } else if (job.status === 'failed') {
+        return `
+            <span class="error-text" title="${job.error || '转码失败'}">❌ 失败</span>
+        `;
+    }
+}
+
+async function startTranscode(videoId) {
+    try {
+        const response = await fetch(`/api/transcode/${videoId}`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            throw new Error('转码请求失败');
+        }
+        
+        const result = await response.json();
+        console.log('转码任务已开始:', result);
+        
+        // 开始监控转码进度
+        monitorTranscodeJob(result.jobId);
+        
+    } catch (error) {
+        console.error('启动转码失败:', error);
+        alert('启动转码失败: ' + error.message);
+    }
+}
+
+async function monitorTranscodeJob(jobId) {
+    const checkInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`/api/transcode/status/${jobId}`);
+            if (!response.ok) {
+                clearInterval(checkInterval);
+                return;
+            }
+            
+            const job = await response.json();
+            transcodeJobs.set(jobId, job);
+            
+            // 更新界面
+            renderVideos();
+            
+            // 如果任务完成或失败，停止监控
+            if (job.status === 'completed' || job.status === 'failed') {
+                clearInterval(checkInterval);
+            }
+        } catch (error) {
+            console.error('获取转码状态失败:', error);
+            clearInterval(checkInterval);
+        }
+    }, 1000); // 每秒检查一次
+}
+
+async function downloadVideo(videoId) {
+    window.location.href = `/api/download/${videoId}`;
+}
+
+async function downloadTranscodedVideo(jobId) {
+    window.location.href = `/api/transcode/download/${jobId}`;
+}
+
+async function loadTranscodeJobs() {
+    try {
+        const response = await fetch('/api/transcode/jobs');
+        const jobs = await response.json();
+        
+        // 更新本地存储的任务
+        transcodeJobs.clear();
+        jobs.forEach(job => {
+            transcodeJobs.set(job.id, job);
+            // 如果任务还在进行中，继续监控
+            if (job.status === 'processing') {
+                monitorTranscodeJob(job.id);
+            }
+        });
+        
+        renderVideos();
+    } catch (error) {
+        console.error('加载转码任务失败:', error);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     loadServerInfo();
     loadVideos();
+    loadTranscodeJobs();
 });
