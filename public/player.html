@@ -39,10 +39,39 @@
                         <span>格式: ${video.extension}</span>
                         <span>大小: ${video.sizeFormatted}</span>
                         <span>修改时间: ${video.modifiedTimeFormatted}</span>
+                        <button id="downloadBtn" style="margin-left: 20px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                            📥 下载视频
+                        </button>
                     `;
                     
                     const player = document.getElementById('videoPlayer');
                     player.src = `/api/stream/${videoId}`;
+                    
+                    // 添加下载按钮点击事件
+                    setTimeout(() => {
+                        const downloadBtn = document.getElementById('downloadBtn');
+                        if (downloadBtn) {
+                            downloadBtn.addEventListener('click', () => {
+                                // 显示下载提示
+                                downloadBtn.textContent = '⏬ 准备下载...';
+                                downloadBtn.disabled = true;
+                                
+                                // 创建隐藏的a标签触发下载
+                                const a = document.createElement('a');
+                                a.href = `/api/download/${videoId}`;
+                                a.download = video.filename;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                
+                                // 恢复按钮状态
+                                setTimeout(() => {
+                                    downloadBtn.textContent = '📥 下载视频';
+                                    downloadBtn.disabled = false;
+                                }, 2000);
+                            });
+                        }
+                    }, 100);
                 })
                 .catch(error => {
                     alert('加载视频失败');

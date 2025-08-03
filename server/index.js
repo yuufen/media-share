@@ -59,6 +59,27 @@ app.get('/api/stream/:id', (req, res) => {
     streaming.streamVideo(video.path, req, res);
 });
 
+// 下载视频
+app.get('/api/download/:id', (req, res) => {
+    const video = videoLibrary.find(v => v.id === req.params.id);
+    if (!video) {
+        return res.status(404).json({ error: 'Video not found' });
+    }
+    
+    // 设置下载响应头
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(video.filename)}"`);
+    res.setHeader('Content-Length', video.size);
+    
+    // 创建文件流并发送
+    const stream = fs.createReadStream(video.path);
+    stream.on('error', (err) => {
+        console.error('Download error:', err);
+        res.status(500).json({ error: 'Download failed' });
+    });
+    stream.pipe(res);
+});
+
 app.get('/api/server-info', async (req, res) => {
     const serverIP = ip.address();
     const serverURL = `http://${serverIP}:${PORT}`;
