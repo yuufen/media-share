@@ -26,6 +26,10 @@ function streamVideo(videoPath, req, res) {
         
         res.writeHead(206, head);
         file.pipe(res);
+        file.on('error', (err) => {
+            console.error('Stream error:', err);
+            res.end();
+        });
     } else {
         const head = {
             'Content-Length': fileSize,
@@ -35,7 +39,12 @@ function streamVideo(videoPath, req, res) {
         };
         
         res.writeHead(200, head);
-        fs.createReadStream(videoPath).pipe(res);
+        const stream = fs.createReadStream(videoPath);
+        stream.pipe(res);
+        stream.on('error', (err) => {
+            console.error('Stream error:', err);
+            res.end();
+        });
     }
 }
 
