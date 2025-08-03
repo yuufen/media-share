@@ -141,7 +141,8 @@ function renderCategoryLevel(tree, parentPath, level) {
         html += `
             <div class="category-item ${isActive ? 'active' : ''}" 
                  style="padding-left: ${20 + level * 20}px"
-                 onclick="selectCategory(${JSON.stringify(currentPath)})">
+                 data-path="${currentPath.join('/')}"
+                 onclick="selectCategoryByPath(this)">
                 <span class="category-icon">${hasChildren ? '📁' : '📄'}</span>
                 <span class="category-name">${folderName}</span>
                 <span class="category-count">(${data.count})</span>
@@ -160,6 +161,12 @@ function selectCategory(path) {
     currentCategoryPath = path;
     renderCategoryTree();
     filterVideos(document.getElementById('searchInput').value);
+}
+
+function selectCategoryByPath(element) {
+    const pathStr = element.getAttribute('data-path');
+    const path = pathStr ? pathStr.split('/') : [];
+    selectCategory(path);
 }
 
 document.getElementById('searchInput').addEventListener('input', (e) => {
