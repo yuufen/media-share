@@ -63,12 +63,54 @@ header::before {
 
 .logo-icon {
     display: inline-block;
-    animation: float 3s ease-in-out infinite;
+    font-size: 3.5rem;
+    background: var(--primary-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: spin-glow 4s ease-in-out infinite;
+    margin-right: 15px;
+    font-weight: 100;
+    position: relative;
 }
 
-@keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+.logo-icon::before {
+    content: '◈';
+    position: absolute;
+    top: 0;
+    left: 0;
+    filter: blur(20px);
+    opacity: 0.5;
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes spin-glow {
+    0%, 100% { 
+        transform: rotate(0deg) scale(1);
+        filter: brightness(1);
+    }
+    25% {
+        transform: rotate(90deg) scale(1.1);
+        filter: brightness(1.2);
+    }
+    50% { 
+        transform: rotate(180deg) scale(1);
+        filter: brightness(1.4);
+    }
+    75% {
+        transform: rotate(270deg) scale(1.1);
+        filter: brightness(1.2);
+    }
+}
+
+@keyframes pulse-glow {
+    0%, 100% { 
+        opacity: 0.3;
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.6;
+        transform: scale(1.2);
+    }
 }
 
 h1 {
